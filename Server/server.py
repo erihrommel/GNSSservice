@@ -72,7 +72,7 @@ def extract_date_from_rinex(rnx_path: str) -> date:
 
 def run_rtklib_spp(base_file: str, rover_file: str, nav_file: str, out_file: str):
     """Запускает rnx2rtkp"""
-    cmd = ["/Users/sergeidolin/RTKLIB/app/consapp/rnx2rtkp/gcc/rnx2rtkp", "-p", "3", "-o", out_file, base_file, rover_file, nav_file]
+    cmd = ["/home/student/RTKLIB/app/consapp/rnx2rtkp/gcc/rnx2rtkp", "-p", "3", "-o", out_file, rover_file, base_file, nav_file]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"RTKLIB ошибка:\n{result.stderr}")
@@ -97,14 +97,24 @@ def handle_client(conn):
         name_len = struct.unpack('>I', recv_exactly(conn, 4))[0]
         base_filename = recv_exactly(conn, name_len).decode('utf-8')
         file_size = struct.unpack('>Q', recv_exactly(conn, 8))[0]
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.rnx') as f:
+            obs_path = base_filename
+            total = 0
+            while total < file_size:
+                chunk = conn.recv(min(65536, file_size - total))
+                if not chunk:
+                    raise RuntimeError("Клиент разорвал соединение")
+                f.write(chunk)
+                total += len(chunk)
 
         name_len = struct.unpack('>I', recv_exactly(conn, 4))[0]
         rover_filename = recv_exactly(conn, name_len).decode('utf-8')
         file_size = struct.unpack('>Q', recv_exactly(conn, 8))[0]
 
         # Сохраняем RINEX во временный файл
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.obs') as f:
-            obs_path = f.name
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.rnx') as f:
+            obs_path = rover_filename
             total = 0
             while total < file_size:
                 chunk = conn.recv(min(65536, file_size - total))
@@ -168,7 +178,7 @@ def handle_client(conn):
 def main():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server.bind(('0.0.0.0', 9999))
+    server.bind(('192.168.1.100', 9999))
     server.listen(5)
     print("Сервер запущен на порту 9999")
     try:
