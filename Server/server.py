@@ -70,7 +70,7 @@ def extract_date_from_rinex(rnx_path: str) -> date:
     raise ValueError("Не найдена дата в RINEX-файле")
 
 
-def run_rtklib_spp(base_file: str, rover_file: str, nav_file: str, out_file: str):
+def run_rtklib_rel(base_file: str, rover_file: str, nav_file: str, out_file: str):
     """Запускает rnx2rtkp"""
     cmd = ["/home/student/RTKLIB/app/consapp/rnx2rtkp/gcc/rnx2rtkp", "-p", "3", "-o", out_file, rover_file, base_file, nav_file]
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -114,7 +114,7 @@ def handle_client(conn):
 
         # Сохраняем RINEX во временный файл
         with tempfile.NamedTemporaryFile(delete=False, suffix='.rnx') as f:
-            obs_path = rover_filename
+            obs_path1 = rover_filename
             total = 0
             while total < file_size:
                 chunk = conn.recv(min(65536, file_size - total))
@@ -131,7 +131,7 @@ def handle_client(conn):
 
         # Запускаем RTKLIB напрямую
         result_path = obs_path.replace('.obs', '.pos')
-        run_rtklib_rel(obs_path, eph_path, result_path)
+        run_rtklib_rel(obs_path, obs_path1, eph_path, result_path)
 
         # Отправляем результат клиенту
         # Читаем .pos и извлекаем последнюю строку с решением
